@@ -1,85 +1,45 @@
-const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("./database.sqlite");
+const Database = require("better-sqlite3");
+const db = new Database("database.sqlite");
 
-// Tabellen erstellen
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel TEXT,
-      username TEXT,
-      text TEXT,
-      timestamp INTEGER
-    )
-  `);
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel TEXT,
+    name TEXT,
+    text TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT,
-      online INTEGER
-    )
-  `);
-});
-
-// Nachricht speichern
-function saveMessage(channel, username, text) {
-  return new Promise((resolve, reject) => {
-    const timestamp = Date.now();
-    db.run(
-      `INSERT INTO messages (channel, username, text, timestamp) VALUES (?, ?, ?, ?)`,
-      [channel, username, text, timestamp],
-      function (err) {
-        if (err) reject(err);
-        else
-          resolve({
-            id: this.lastID,
-            channel,
-            username,
-            text,
-            timestamp,
-          });
-      }
-    );
-  });
+function saveMessage(channel, name, text) {
+  const stmt = db.prepare(
+    "INSERT INTO messages (channel, name, text) VALUES (?, ?, ?)"
+  );
+  const result = stmt.run(channel, name, text);
+  return {
+    id: result.lastInsertRowid,
+    channel,
+    name,
+    text,
+    timestamp: new Date().toISOString(),
+  };
 }
 
-// Nachrichten eines Channels laden
 function getMessages(channel) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT * FROM messages WHERE channel = ? ORDER BY timestamp ASC`,
-      [channel],
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      }
-    );
-  });
+  const stmt = db.prepare(
+    "SELECT * FROM messages WHERE channel = ? ORDER BY id ASC"
+  );
+  return stmt.all(channel);
 }
 
-// Nachricht löschen
 function deleteMessage(id) {
-  return new Promise((resolve, reject) => {
-    db.run(`DELETE FROM messages WHERE id = ?`, [id], function (err) {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  const stmt = db.prepare("DELETE FROM messages WHERE id = ?");
+  stmt.run(id);
 }
 
-// Nachricht bearbeiten
 function editMessage(id, newText) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE messages SET text = ? WHERE id = ?`,
-      [newText, id],
-      function (err) {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
+  const stmt = db.prepare("UPDATE messages SET text = ? WHERE id = ?");
+  stmt.run(newText, id);
 }
 
 module.exports = {
