@@ -1,0 +1,7 @@
+echo "# mini-discord" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/Speedy158/mini-discord.git
+git push -u origin main
