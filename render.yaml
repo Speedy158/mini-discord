@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: mini-discord-backend
-    env: node
-    buildCommand: "npm install"
-    startCommand: "node server.js"
-    nodeVersion: "20"
