@@ -1,86 +1,41 @@
 const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { Server } = require("socket.io");
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
-  cors: { origin: "*" },
+app.use(cors());
+
+// HTTP-Server erstellen
+const server = http.createServer(app);
+
+// Socket.io initialisieren
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
-const PORT = 3000;
 
-const {
-  saveMessage,
-  getMessages,
-  deleteMessage,
-  editMessage,
-} = require("./database");
-
-const users = {};
-const voiceUsers = {};
-
+// Socket.io Logik
 io.on("connection", (socket) => {
-  socket.on("registerUser", (username) => {
-    users[socket.id] = username;
-    io.emit("userList", users);
-  });
+  console.log("Client verbunden:", socket.id);
 
-  socket.on("joinChannel", async (channel) => {
-    socket.join(channel);
-    const history = await getMessages(channel);
-    socket.emit("channelHistory", history);
-  });
+  // Chat-Nachricht empfangen
+  socket.on("chatMessage", (msg) => {
+    console.log("Nachricht erhalten:", msg);
 
-  socket.on("chatMessage", async (msg) => {
-    const saved = await saveMessage(msg.channel, msg.name, msg.text);
-    io.to(msg.channel).emit("chatMessage", saved);
-  });
-
-  socket.on("deleteMessage", async (id) => {
-    await deleteMessage(id);
-    io.emit("messageDeleted", id);
-  });
-
-  socket.on("editMessage", async ({ id, newText }) => {
-    await editMessage(id, newText);
-    io.emit("messageEdited", { id, newText });
-  });
-
-  socket.on("typing", (username) => {
-    socket.broadcast.emit("typing", username);
-  });
-
-  socket.on("voice:join", ({ channel }) => {
-    voiceUsers[socket.id] = { channel };
-    socket.broadcast.emit("voice:user-joined", { id: socket.id, channel });
-  });
-
-  socket.on("voice:leave", ({ channel }) => {
-    delete voiceUsers[socket.id];
-    socket.broadcast.emit("voice:user-left", { id: socket.id, channel });
-  });
-
-  socket.on("voice:offer", ({ target, offer }) => {
-    io.to(target).emit("voice:offer", { sender: socket.id, offer });
-  });
-
-  socket.on("voice:answer", ({ target, answer }) => {
-    io.to(target).emit("voice:answer", { sender: socket.id, answer });
-  });
-
-  socket.on("voice:ice-candidate", ({ target, candidate }) => {
-    io.to(target).emit("voice:ice-candidate", { sender: socket.id, candidate });
-  });
-
-  socket.on("voice:speaking", ({ speaking }) => {
-    socket.broadcast.emit("voice:speaking", { id: socket.id, speaking });
+    // Nachricht an alle Clients senden
+    io.emit("chatMessage", msg);
   });
 
   socket.on("disconnect", () => {
-    delete users[socket.id];
-    delete voiceUsers[socket.id];
-    io.emit("userList", users);
-    io.emit("voice:user-left", { id: socket.id });
+    console.log("Client getrennt:", socket.id);
   });
 });
 
-http.listen(PORT, () => {
+// Render Port
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });

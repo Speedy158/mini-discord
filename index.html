@@ -39,11 +39,14 @@
     <input id="input" placeholder="Nachricht eingeben..." autocomplete="off">
     <button id="send">Senden</button>
 
-    <!-- Socket.io laden -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Socket.io vom Backend laden -->
+    <script src="https://mini-discord-backend-7xaw.onrender.com/socket.io/socket.io.js"></script>
 
     <script>
-      const socket = io();
+      // Verbindung zum Backend
+      const socket = io("https://mini-discord-backend-7xaw.onrender.com", {
+        transports: ["websocket"]
+      });
 
       let username = "";
 
