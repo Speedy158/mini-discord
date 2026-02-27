@@ -6,10 +6,8 @@ const { Server } = require("socket.io");
 const app = express();
 app.use(cors());
 
-// HTTP-Server erstellen
 const server = http.createServer(app);
 
-// Socket.io initialisieren
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -17,15 +15,11 @@ const io = new Server(server, {
   }
 });
 
-// Socket.io Logik
 io.on("connection", (socket) => {
   console.log("Client verbunden:", socket.id);
 
-  // Chat-Nachricht empfangen
   socket.on("chatMessage", (msg) => {
     console.log("Nachricht erhalten:", msg);
-
-    // Nachricht an alle Clients senden
     io.emit("chatMessage", msg);
   });
 
@@ -34,7 +28,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Render Port
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
