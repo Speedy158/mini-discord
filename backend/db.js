@@ -1,130 +1,103 @@
 // backend/db.js
-const path = require("path");
-const sqlite3 = require("sqlite3").verbose();
+const { Pool } = require("pg");
 
-const DB_FILE = path.join(__dirname, "data.db");
-
-const db = new sqlite3.Database(DB_FILE, (err) => {
-  if (err) {
-    console.error("Fehler beim Öffnen der Datenbank:", err);
-  } else {
-    console.log("SQLite-Datenbank geöffnet:", DB_FILE);
-  }
+const pool = new Pool({
+  host: process.env.PGHOST,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
+  port: process.env.PGPORT,
+  ssl: { rejectUnauthorized: false }
 });
 
-// Promise-Wrapper
 function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+  return pool.query(sql, params);
 }
 
 function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  return pool.query(sql, params).then((res) => res.rows[0]);
 }
 
 function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  return pool.query(sql, params).then((res) => res.rows);
 }
 
-// Tabellen anlegen
 async function init() {
-  // Users
   await run(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       passwordHash TEXT NOT NULL,
       avatarType TEXT DEFAULT 'default',
       avatarColor TEXT,
       avatarLetter TEXT,
       avatarImage TEXT,
-      isAdmin INTEGER DEFAULT 0,
-      isBanned INTEGER DEFAULT 0,
-      createdAt INTEGER NOT NULL,
+      isAdmin BOOLEAN DEFAULT FALSE,
+      isBanned BOOLEAN DEFAULT FALSE,
+      createdAt BIGINT NOT NULL,
       inviteKeyUsed TEXT
     )
   `);
 
-  // Invite Keys
   await run(`
     CREATE TABLE IF NOT EXISTS invite_keys (
       key TEXT PRIMARY KEY,
-      isUsed INTEGER DEFAULT 0,
-      isAdminKey INTEGER DEFAULT 0,
+      isUsed BOOLEAN DEFAULT FALSE,
+      isAdminKey BOOLEAN DEFAULT FALSE,
       usedByUserId INTEGER,
-      createdAt INTEGER NOT NULL,
-      expiresAt INTEGER
+      createdAt BIGINT NOT NULL,
+      expiresAt BIGINT
     )
   `);
 
-  // Channels
   await run(`
     CREATE TABLE IF NOT EXISTS channels (
       name TEXT PRIMARY KEY
     )
   `);
 
-  // Messages
   await run(`
     CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       channel TEXT NOT NULL,
       user TEXT NOT NULL,
       text TEXT NOT NULL,
-      time INTEGER NOT NULL
+      time BIGINT NOT NULL
     )
   `);
 
-  // Online Sessions
   await run(`
     CREATE TABLE IF NOT EXISTS online_sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       userId INTEGER NOT NULL,
       socketId TEXT NOT NULL,
-      connectedAt INTEGER NOT NULL,
-      disconnectedAt INTEGER
+      connectedAt BIGINT NOT NULL,
+      disconnectedAt BIGINT
     )
   `);
 
-  // Login Sessions
   await run(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       userId INTEGER NOT NULL,
-      createdAt INTEGER NOT NULL,
-      expiresAt INTEGER
+      createdAt BIGINT NOT NULL,
+      expiresAt BIGINT
     )
   `);
 
-  // Default Channels
   const existing = await all(`SELECT name FROM channels`);
   if (existing.length === 0) {
     const defaults = ["admin", "general", "gaming", "music"];
     for (const ch of defaults) {
-      await run(`INSERT INTO channels (name) VALUES (?)`, [ch]);
+      await run(`INSERT INTO channels (name) VALUES ($1)`, [ch]);
     }
     console.log("Standard-Channels angelegt:", defaults.join(", "));
   }
 }
 
 module.exports = {
-  db,
-  init,
   run,
   get,
-  all
+  all,
+  init
 };

@@ -1,38 +1,50 @@
 // frontend/peerManager.js
 import socket from "./socket";
+import { getIceServers } from "./utils/getIceServers";
 
 const peers = {};
 let localStream = null;
+let iceServers = [];
 
 export async function initVoicePeers(stream, currentChannel, username, voiceState) {
   localStream = stream;
 
+  if (iceServers.length === 0) {
+    try {
+      iceServers = await getIceServers();
+    } catch (err) {
+      console.error("Fehler beim Laden der ICE-Server:", err);
+      iceServers = [{ urls: "stun:stun.l.google.com:19302" }]; // Fallback
+    }
+  }
+
   const usersInChannel = voiceState[currentChannel] || [];
 
   for (const user of usersInChannel) {
-    if (user.username === username) continue; // nicht mit sich selbst verbinden
-    if (peers[user.username]) continue; // Verbindung existiert bereits
+    if (user.username === username || peers[user.username]) continue;
 
-    const pc = createPeerConnection(user.username, currentChannel);
-    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    const pc = await createPeerConnection(user.username, currentChannel);
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
     peers[user.username] = pc;
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
-    socket.emit("voice-offer", {
-      to: user.username,
-      from: username,
-      sdp: offer,
-      channel: currentChannel
-    });
+      socket.emit("voice-offer", {
+        to: user.username,
+        from: username,
+        sdp: offer,
+        channel: currentChannel
+      });
+    } catch (err) {
+      console.error("Fehler beim Erstellen des Angebots:", err);
+    }
   }
 }
 
-function createPeerConnection(remoteUsername, channel) {
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
+async function createPeerConnection(remoteUsername, channel) {
+  const pc = new RTCPeerConnection({ iceServers });
 
   pc.onicecandidate = (event) => {
     if (event.candidate) {
@@ -47,37 +59,63 @@ function createPeerConnection(remoteUsername, channel) {
 
   pc.ontrack = (event) => {
     const remoteStream = event.streams[0];
-    const audio = new Audio();
-    audio.srcObject = remoteStream;
-    audio.autoplay = true;
-    audio.play().catch((err) => console.warn("Audio play error:", err));
+    if (remoteStream) {
+      const audio = new Audio();
+      audio.srcObject = remoteStream;
+      audio.autoplay = true;
+      audio.play().catch((err) => {
+        console.warn("Audio konnte nicht automatisch abgespielt werden:", err);
+      });
+    }
   };
 
   return pc;
 }
 
 socket.on("voice-offer", async ({ from, sdp, channel }) => {
-  const pc = createPeerConnection(from, channel);
+  if (!localStream) {
+    console.warn("Kein lokaler Stream verfügbar für voice-offer");
+    return;
+  }
+
+  if (!iceServers.length) {
+    try {
+      iceServers = await getIceServers();
+    } catch (err) {
+      console.error("Fehler beim Laden der ICE-Server:", err);
+      iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+    }
+  }
+
+  const pc = await createPeerConnection(from, channel);
   peers[from] = pc;
 
   localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
-  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-  socket.emit("voice-answer", {
-    to: from,
-    from: localStorage.getItem("username"),
-    sdp: answer,
-    channel
-  });
+    socket.emit("voice-answer", {
+      to: from,
+      from: localStorage.getItem("username"),
+      sdp: answer,
+      channel
+    });
+  } catch (err) {
+    console.error("Fehler bei voice-offer:", err);
+  }
 });
 
 socket.on("voice-answer", async ({ from, sdp }) => {
   const pc = peers[from];
   if (!pc) return;
-  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  } catch (err) {
+    console.error("Fehler bei voice-answer:", err);
+  }
 });
 
 socket.on("voice-ice-candidate", async ({ from, candidate }) => {

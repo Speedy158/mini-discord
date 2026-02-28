@@ -1,5 +1,8 @@
+// src/components/UserList.jsx
 import React, { useEffect, useState } from "react";
 import socket from "../socket";
+import { useOnlineUsers } from "../context/OnlineContext";
+import { useVoiceState } from "../context/VoiceContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
@@ -60,8 +63,8 @@ function UserAvatar({ user }) {
 
 function UserList() {
   const [users, setUsers] = useState([]);
-  const [online, setOnline] = useState([]);
-  const [voiceState, setVoiceState] = useState({});
+  const onlineUsernames = useOnlineUsers();
+  const voiceState = useVoiceState();
   const username = localStorage.getItem("username");
 
   useEffect(() => {
@@ -79,31 +82,12 @@ function UserList() {
 
     loadUsers();
 
-    const handleOnline = ({ userId }) => {
-      setOnline((prev) => [...new Set([...prev, userId])]);
-    };
-
-    const handleOffline = ({ userId }) => {
-      setOnline((prev) => prev.filter((id) => id !== userId));
-    };
-
-    const handleVoiceUpdate = (state) => {
-      setVoiceState(state || {});
-    };
-
     const handleUserListUpdate = () => {
       loadUsers();
     };
 
-    socket.on("userOnline", handleOnline);
-    socket.on("userOffline", handleOffline);
-    socket.on("voiceChannelUpdate", handleVoiceUpdate);
     socket.on("userListUpdated", handleUserListUpdate);
-
     return () => {
-      socket.off("userOnline", handleOnline);
-      socket.off("userOffline", handleOffline);
-      socket.off("voiceChannelUpdate", handleVoiceUpdate);
       socket.off("userListUpdated", handleUserListUpdate);
     };
   }, []);
@@ -121,7 +105,7 @@ function UserList() {
     <div className="user-list">
       <h3>Online</h3>
       {users
-        .filter((u) => online.includes(u.id))
+        .filter((u) => onlineUsernames.includes(u.username))
         .map((u) => {
           const channel = getVoiceChannel(u.id);
           const isSelf = u.username === username;
