@@ -79,26 +79,32 @@ function UserList() {
 
     loadUsers();
 
-    function handleOnline({ userId }) {
+    const handleOnline = ({ userId }) => {
       setOnline((prev) => [...new Set([...prev, userId])]);
-    }
+    };
 
-    function handleOffline({ userId }) {
+    const handleOffline = ({ userId }) => {
       setOnline((prev) => prev.filter((id) => id !== userId));
-    }
+    };
 
-    function handleVoiceUpdate(state) {
+    const handleVoiceUpdate = (state) => {
       setVoiceState(state || {});
-    }
+    };
+
+    const handleUserListUpdate = () => {
+      loadUsers();
+    };
 
     socket.on("userOnline", handleOnline);
     socket.on("userOffline", handleOffline);
     socket.on("voiceChannelUpdate", handleVoiceUpdate);
+    socket.on("userListUpdated", handleUserListUpdate);
 
     return () => {
       socket.off("userOnline", handleOnline);
       socket.off("userOffline", handleOffline);
       socket.off("voiceChannelUpdate", handleVoiceUpdate);
+      socket.off("userListUpdated", handleUserListUpdate);
     };
   }, []);
 

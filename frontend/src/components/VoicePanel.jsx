@@ -51,6 +51,31 @@ function VoicePanel({ username }) {
 
     loadChannels();
     loadUser();
+
+    // Echtzeit-Updates für Channels
+    const handleCreated = ({ name }) => {
+      setChannels((prev) => [...prev, name]);
+    };
+
+    const handleRenamed = ({ oldName, newName }) => {
+      setChannels((prev) =>
+        prev.map((ch) => (ch === oldName ? newName : ch))
+      );
+    };
+
+    const handleDeleted = ({ name }) => {
+      setChannels((prev) => prev.filter((ch) => ch !== name));
+    };
+
+    socket.on("channelCreated", handleCreated);
+    socket.on("channelRenamed", handleRenamed);
+    socket.on("channelDeleted", handleDeleted);
+
+    return () => {
+      socket.off("channelCreated", handleCreated);
+      socket.off("channelRenamed", handleRenamed);
+      socket.off("channelDeleted", handleDeleted);
+    };
   }, [sessionId]);
 
   useEffect(() => {
