@@ -19,7 +19,7 @@ services:
     env: node
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: serve -s build
+    startCommand: npx serve -s build
     rootDir: frontend
     envVars:
       - key: REACT_APP_API_BASE
