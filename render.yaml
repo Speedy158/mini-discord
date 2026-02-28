@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: mini-discord-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    rootDir: backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: ALLOWED_ORIGIN
+        value: https://mini-discord-frontend.onrender.com
+
+  - type: static
+    name: mini-discord-frontend
+    buildCommand: npm install && npm run build
+    publishPath: build
+    rootDir: frontend
+    envVars:
+      - key: REACT_APP_API_BASE
+        value: https://mini-discord-backend.onrender.com
