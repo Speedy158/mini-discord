@@ -57,7 +57,7 @@ module.exports = function (io) {
     const createdAt = Date.now();
 
     const insertUser = await get(
-      `INSERT INTO users (username, passwordHash, isAdmin, createdAt, inviteKeyUsed)
+      `INSERT INTO users (username, passwordhash, isAdmin, createdAt, inviteKeyUsed)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       [username, passwordHash, key.isAdminKey, createdAt, inviteKey]
@@ -102,7 +102,10 @@ module.exports = function (io) {
       return res.status(400).json({ error: "Ungültiges Passwort" });
     }
 
-    const user = await get(`SELECT id, username, passwordHash, isAdmin, isBanned FROM users WHERE username = $1`, [username]);
+    const user = await get(
+      `SELECT id, username, passwordhash, isAdmin, isBanned FROM users WHERE username = $1`,
+      [username]
+    );
     if (!user) return res.status(400).json({ error: "Benutzer existiert nicht" });
     if (user.isBanned) return res.status(403).json({ error: "Du bist gebannt" });
 
@@ -110,12 +113,12 @@ module.exports = function (io) {
       username,
       password,
       typeofPassword: typeof password,
-      storedHash: user?.passwordHash,
-      typeofHash: typeof user?.passwordHash
+      storedHash: user?.passwordhash,
+      typeofHash: typeof user?.passwordhash
     });
 
     try {
-      const valid = await verifyPassword(password, user.passwordHash);
+      const valid = await verifyPassword(password, user.passwordhash);
       console.log("Password valid:", valid);
 
       if (!valid) {
