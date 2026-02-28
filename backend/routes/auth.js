@@ -102,7 +102,7 @@ module.exports = function (io) {
       return res.status(400).json({ error: "Ungültiges Passwort" });
     }
 
-    const user = await get(`SELECT * FROM users WHERE username = $1`, [username]);
+    const user = await get(`SELECT id, username, passwordHash, isAdmin, isBanned FROM users WHERE username = $1`, [username]);
     if (!user) return res.status(400).json({ error: "Benutzer existiert nicht" });
     if (user.isBanned) return res.status(403).json({ error: "Du bist gebannt" });
 
