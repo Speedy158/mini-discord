@@ -12,7 +12,7 @@ module.exports = function (io) {
       const time = Date.now();
       try {
         await run(
-          `INSERT INTO messages (channel, user, text, time) VALUES ($1, $2, $3, $4)`,
+          `INSERT INTO messages (channel, username, text, time) VALUES ($1, $2, $3, $4)`,
           [channel, user.username, text, time]
         );
 
@@ -30,7 +30,7 @@ module.exports = function (io) {
       try {
         const messages = await all(`SELECT * FROM messages WHERE id = $1`, [id]);
         const message = messages[0];
-        if (!message || message.user !== user.username) return;
+        if (!message || message.username !== user.username) return;
 
         await run(`UPDATE messages SET text = $1 WHERE id = $2`, [text, id]);
 
@@ -51,7 +51,7 @@ module.exports = function (io) {
       try {
         const messages = await all(`SELECT * FROM messages WHERE id = $1`, [id]);
         const message = messages[0];
-        if (!message || message.user !== user.username) return;
+        if (!message || message.username !== user.username) return;
 
         await run(`DELETE FROM messages WHERE id = $1`, [id]);
 

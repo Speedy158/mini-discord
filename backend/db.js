@@ -60,7 +60,7 @@ async function init() {
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       channel TEXT NOT NULL,
-      user TEXT NOT NULL,
+      username TEXT NOT NULL,
       text TEXT NOT NULL,
       time BIGINT NOT NULL
     )

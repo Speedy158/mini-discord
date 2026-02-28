@@ -31,7 +31,7 @@ module.exports = function (io) {
     }
 
     const msgs = await all(
-      `SELECT id, channel, user, text, time
+      `SELECT id, channel, username, text, time
        FROM messages
        WHERE channel = $1
        ORDER BY time ASC`,

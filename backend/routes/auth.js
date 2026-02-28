@@ -1,7 +1,11 @@
 const express = require("express");
-const { get, run, all } = require("../db");
+const { get, run } = require("../db");
 const { hashPassword, verifyPassword } = require("../utils/hash");
-const { validateUsername, validatePassword, validateInviteKey } = require("../utils/validators");
+const {
+  validateUsername,
+  validatePassword,
+  validateInviteKey
+} = require("../utils/validators");
 const crypto = require("crypto");
 
 function createSessionId() {
