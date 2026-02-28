@@ -1,81 +1,48 @@
 // backend/socket/chat.js
-const { run, all, get } = require("../db");
+const { run, all } = require("../db");
 
 module.exports = function (io) {
   io.on("connection", (socket) => {
-    console.log("Chat-Socket verbunden:", socket.id);
+    console.log(`🔌 Chat-Socket verbunden: ${socket.user.username}`);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Nachrichten senden
-    |--------------------------------------------------------------------------
-    */
-    socket.on("sendMessage", async ({ channel, user, text }) => {
-      if (!channel || !user || !text) return;
+    // Nachricht senden
+    socket.on("sendMessage", async ({ channel, text }) => {
+      const user = socket.user;
+      if (!channel || !text || !user) return;
 
       const time = Date.now();
-
       await run(
-        `INSERT INTO messages (channel, user, text, time)
-         VALUES (?, ?, ?, ?)`,
-        [channel, user, text, time]
+        `INSERT INTO messages (channel, user, text, time) VALUES (?, ?, ?, ?)`,
+        [channel, user.username, text, time]
       );
 
-      io.emit("newMessage", { channel, user, text, time });
+      io.emit("newMessage", { channel, user: user.username, text, time });
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Nachrichten eines Channels laden
-    |--------------------------------------------------------------------------
-    */
-    socket.on("requestMessages", async ({ channel }) => {
-      if (!channel) return;
+    // Nachricht bearbeiten
+    socket.on("editMessage", async ({ id, text }) => {
+      const user = socket.user;
+      if (!id || !text || !user) return;
 
-      const msgs = await all(
-        `SELECT id, channel, user, text, time
-         FROM messages
-         WHERE channel = ?
-         ORDER BY time ASC`,
-        [channel]
-      );
+      const messages = await all(`SELECT * FROM messages WHERE id = ?`, [id]);
+      const message = messages[0];
+      if (!message || message.user !== user.username) return;
 
-      socket.emit("loadMessages", msgs);
+      await run(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
+      io.emit("editMessage", { id, text });
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Nachricht bearbeiten (Admin)
-    |--------------------------------------------------------------------------
-    */
-    socket.on("editMessage", async ({ messageId, newText }) => {
-      if (!messageId || !newText) return;
+    // Nachricht löschen
+    socket.on("deleteMessage", async ({ id }) => {
+      const user = socket.user;
+      if (!id || !user) return;
 
-      await run(`UPDATE messages SET text = ? WHERE id = ?`, [
-        newText,
-        messageId
-      ]);
+      const messages = await all(`SELECT * FROM messages WHERE id = ?`, [id]);
+      const message = messages[0];
+      if (!message || message.user !== user.username) return;
 
-      const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
-      if (msg) {
-        io.emit("messageEdited", msg);
-      }
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Nachricht löschen (Admin)
-    |--------------------------------------------------------------------------
-    */
-    socket.on("deleteMessage", async ({ messageId }) => {
-      if (!messageId) return;
-
-      const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
-      if (!msg) return;
-
-      await run(`DELETE FROM messages WHERE id = ?`, [messageId]);
-
-      io.emit("messageDeleted", { messageId, channel: msg.channel });
+      await run(`DELETE FROM messages WHERE id = ?`, [id]);
+      io.emit("deleteMessage", { id });
     });
   });
 };

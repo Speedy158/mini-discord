@@ -1,47 +1,27 @@
 // backend/socket/presence.js
-const { run, get } = require("../db");
+const { run } = require("../db");
 
 module.exports = function (io) {
   io.on("connection", async (socket) => {
-    console.log("Presence-Socket verbunden:", socket.id);
+    const user = socket.user;
+    if (!user) {
+      console.warn("Presence-Socket ohne gültige Authentifizierung");
+      return;
+    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | User identifizieren (über Session)
-    |--------------------------------------------------------------------------
-    | Der Client sendet direkt nach Verbindungsaufbau:
-    | socket.emit("identify", { sessionId });
-    |--------------------------------------------------------------------------
-    */
-    socket.on("identify", async ({ sessionId }) => {
-      if (!sessionId) return;
+    console.log(`🟢 Presence-Socket verbunden: ${user.username}`);
 
-      const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
-      if (!session) return;
+    // Online-Session speichern
+    await run(
+      `INSERT INTO online_sessions (userId, socketId, connectedAt)
+       VALUES (?, ?, ?)`,
+      [user.id, socket.id, Date.now()]
+    );
 
-      const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
-      if (!user) return;
+    io.emit("userOnline", { userId: user.id });
 
-      socket.userId = user.id;
-
-      // Online-Session speichern
-      await run(
-        `INSERT INTO online_sessions (userId, socketId, connectedAt)
-         VALUES (?, ?, ?)`,
-        [user.id, socket.id, Date.now()]
-      );
-
-      io.emit("userOnline", { userId: user.id });
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Disconnect → Online-Session schließen
-    |--------------------------------------------------------------------------
-    */
+    // Disconnect → Online-Session schließen
     socket.on("disconnect", async () => {
-      if (!socket.userId) return;
-
       await run(
         `UPDATE online_sessions
          SET disconnectedAt = ?
@@ -49,7 +29,7 @@ module.exports = function (io) {
         [Date.now(), socket.id]
       );
 
-      io.emit("userOffline", { userId: socket.userId });
+      io.emit("userOffline", { userId: user.id });
     });
   });
 };

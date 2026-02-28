@@ -1,12 +1,4 @@
-# Node.js
 node_modules/
 .env
-*.log
-
-# SQLite
-*.sqlite
-
-# Sonstiges
-.DS_Store
-dist/
 build/
+dist/

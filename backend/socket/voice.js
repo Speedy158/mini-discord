@@ -1,34 +1,37 @@
+// backend/socket/voice.js
 const { all } = require("../db");
 
 let voiceChannels = {}; // z.B. { general: [ { id, userId, username } ] }
-let socketUsers = {};   // socket.id → { userId, username }
 
 async function setupVoice(io) {
   const channels = await all(`SELECT name FROM channels`);
   channels.forEach((c) => (voiceChannels[c.name] = []));
 
   io.on("connection", (socket) => {
-    console.log("Voice-Socket verbunden:", socket.id);
+    const user = socket.user;
+    if (!user) {
+      console.warn("Voice-Socket ohne gültige Authentifizierung");
+      return;
+    }
 
-    socket.on("registerUser", ({ username, userId }) => {
-      socketUsers[socket.id] = { username, userId };
-    });
+    console.log(`🎧 Voice-Socket verbunden: ${user.username}`);
 
+    // Channel beitreten
     socket.on("joinVoiceChannel", ({ channel }) => {
-      const user = socketUsers[socket.id];
-      if (!user) return;
+      if (!channel || !voiceChannels[channel]) return;
 
+      // Aus allen Channels entfernen
       for (const ch in voiceChannels) {
         voiceChannels[ch] = voiceChannels[ch].filter(
-          (u) => u.userId !== user.userId
+          (u) => u.userId !== user.id
         );
         socket.leave("vc-" + ch);
       }
 
-      if (!voiceChannels[channel]) voiceChannels[channel] = [];
+      // Channel beitreten
       voiceChannels[channel].push({
         id: socket.id,
-        userId: user.userId,
+        userId: user.id,
         username: user.username
       });
 
@@ -36,43 +39,38 @@ async function setupVoice(io) {
       io.emit("voiceChannelUpdate", voiceChannels);
     });
 
+    // Channel verlassen
     socket.on("leaveVoiceChannel", ({ channel }) => {
-      const user = socketUsers[socket.id];
-      if (!user) return;
+      if (!channel || !voiceChannels[channel]) return;
 
-      if (voiceChannels[channel]) {
-        voiceChannels[channel] = voiceChannels[channel].filter(
-          (u) => u.userId !== user.userId
-        );
-      }
+      voiceChannels[channel] = voiceChannels[channel].filter(
+        (u) => u.userId !== user.id
+      );
 
       socket.leave("vc-" + channel);
       io.emit("voiceChannelUpdate", voiceChannels);
     });
 
+    // Sprachaktivität starten
     socket.on("speakingStart", ({ channel }) => {
-      const user = socketUsers[socket.id];
-      if (!user) return;
+      if (!channel) return;
       io.to("vc-" + channel).emit("speakingStart", { user: user.username });
     });
 
+    // Sprachaktivität stoppen
     socket.on("speakingStop", ({ channel }) => {
-      const user = socketUsers[socket.id];
-      if (!user) return;
+      if (!channel) return;
       io.to("vc-" + channel).emit("speakingStop", { user: user.username });
     });
 
+    // Verbindung trennen
     socket.on("disconnect", () => {
-      const user = socketUsers[socket.id];
-      if (!user) return;
-
       for (const ch in voiceChannels) {
         voiceChannels[ch] = voiceChannels[ch].filter(
-          (u) => u.userId !== user.userId
+          (u) => u.userId !== user.id
         );
       }
 
-      delete socketUsers[socket.id];
       io.emit("voiceChannelUpdate", voiceChannels);
     });
   });

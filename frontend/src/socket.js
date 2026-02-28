@@ -1,15 +1,15 @@
 // src/socket.js
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3000", {
-  autoConnect: true
-});
+// Session-ID aus dem LocalStorage holen
+const sessionId = localStorage.getItem("sessionId");
 
-// Presence: Session an Socket binden
-socket.on("connect", () => {
-  const sessionId = localStorage.getItem("sessionId");
-  if (sessionId) {
-    socket.emit("identify", { sessionId });
+// Socket.IO-Client initialisieren
+const socket = io("https://mini-discord-backend-07n7.onrender.com", {
+  withCredentials: true,
+  autoConnect: true,
+  auth: {
+    sessionId
   }
 });
 
