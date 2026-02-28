@@ -12,7 +12,7 @@ services:
       - key: PORT
         value: 3000
       - key: ALLOWED_ORIGIN
-        value: https://mini-discord-backend-07n7.onrender.com
+        value: https://mini-discord-frontend.onrender.com
 
   - type: web
     name: mini-discord-frontend
@@ -23,4 +23,4 @@ services:
     rootDir: frontend
     envVars:
       - key: REACT_APP_API_BASE
-        value: https://mini-discord-backend.onrender.com
+        value: https://mini-discord-backend-07n7.onrender.com
