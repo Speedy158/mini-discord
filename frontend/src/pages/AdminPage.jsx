@@ -10,20 +10,23 @@ function AdminPage() {
   const [channels, setChannels] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const sessionId = localStorage.getItem("sessionId");
 
   // Session prüfen
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      window.location.href = "/";
+      return;
+    }
 
-    fetch(`${API_BASE}/api/users/me`, {
+    fetch(`${API_BASE}/api/auth/session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-session-id": sessionId
-      },
-      body: JSON.stringify({})
+      }
     })
       .then((res) => res.json())
       .then((data) => {
@@ -31,9 +34,14 @@ function AdminPage() {
           setSessionValid(true);
         } else {
           localStorage.removeItem("sessionId");
-          setSessionValid(false);
+          window.location.href = "/";
         }
-      });
+      })
+      .catch(() => {
+        localStorage.removeItem("sessionId");
+        window.location.href = "/";
+      })
+      .finally(() => setCheckingSession(false));
   }, [sessionId]);
 
   // Admin-Daten laden
@@ -134,18 +142,7 @@ function AdminPage() {
     if (data.ok) fetchUsers();
   }
 
-  // Wenn keine Session vorhanden oder ungültig
-  if (!sessionId || !sessionValid) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Keine gültige Session</h2>
-        <p>Bitte neu einloggen.</p>
-        <a href="/">Zum Login</a>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (checkingSession || loading) {
     return <div style={{ padding: 20 }}>Lade Admin-Daten…</div>;
   }
 

@@ -1,5 +1,6 @@
 // src/pages/LoginPage.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
@@ -8,6 +9,8 @@ function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [inviteKey, setInviteKey] = useState("");
+
+  const navigate = useNavigate();
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -25,7 +28,7 @@ function LoginPage() {
     }
 
     localStorage.setItem("sessionId", data.sessionId);
-    window.location.href = "/chat";
+    navigate("/chat");
   }
 
   async function handleRegister(e) {
@@ -44,7 +47,7 @@ function LoginPage() {
     }
 
     localStorage.setItem("sessionId", data.sessionId);
-    window.location.href = "/chat";
+    navigate("/chat");
   }
 
   return (

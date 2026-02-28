@@ -17,13 +17,12 @@ function ChatPage() {
     const sessionId = localStorage.getItem("sessionId");
     if (!sessionId) return;
 
-    fetch(`${API_BASE}/api/users/me`, {
+    fetch(`${API_BASE}/api/auth/session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-session-id": sessionId
-      },
-      body: JSON.stringify({})
+      }
     })
       .then((res) => res.json())
       .then((data) => {
@@ -33,6 +32,10 @@ function ChatPage() {
         } else {
           localStorage.removeItem("sessionId");
         }
+      })
+      .catch((err) => {
+        console.error("Fehler beim Session-Check:", err);
+        localStorage.removeItem("sessionId");
       });
   }, []);
 
