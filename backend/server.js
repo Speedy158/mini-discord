@@ -11,7 +11,6 @@ const inviteRoutes = require("./routes/invite");
 const userRoutes = require("./routes/users");
 const channelRoutes = require("./routes/channels");
 const messageRoutes = require("./routes/messages");
-const voiceRoutes = require("./routes/voice");
 
 // Socket-Handler
 const chatSocket = require("./socket/chat");
@@ -66,7 +65,6 @@ app.use("/api/invite", inviteRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/channels", channelRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/voice", voiceRoutes);
 
 // Socket.io-Events
 chatSocket(io);
