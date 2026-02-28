@@ -17,3 +17,4 @@ root.render(
     </OnlineProvider>
   </React.StrictMode>
 );
+
