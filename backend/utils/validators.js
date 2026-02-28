@@ -2,15 +2,12 @@
 
 function validateUsername(username) {
   if (!username) return false;
-  if (username.length < 3) return false;
-  if (username.length > 20) return false;
+  if (username.length < 3 || username.length > 20) return false;
   return /^[a-zA-Z0-9_]+$/.test(username);
 }
 
 function validatePassword(password) {
-  if (!password) return false;
-  if (password.length < 6) return false;
-  return true;
+  return typeof password === "string" && password.length >= 6;
 }
 
 function validateInviteKey(key) {

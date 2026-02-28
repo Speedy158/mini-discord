@@ -99,8 +99,23 @@ module.exports = function (io) {
     if (!user) return res.status(400).json({ error: "Benutzer existiert nicht" });
     if (user.isBanned) return res.status(403).json({ error: "Du bist gebannt" });
 
-    const valid = await verifyPassword(password, user.passwordHash);
-    if (!valid) return res.status(400).json({ error: "Falsches Passwort" });
+    console.log("Login attempt:", {
+      username,
+      password,
+      storedHash: user?.passwordHash
+    });
+
+    try {
+      const valid = await verifyPassword(password, user.passwordHash);
+      console.log("Password valid:", valid);
+
+      if (!valid) {
+        return res.status(400).json({ error: "Falsches Passwort" });
+      }
+    } catch (err) {
+      console.error("Fehler beim Passwortvergleich:", err);
+      return res.status(500).json({ error: "Interner Fehler beim Login" });
+    }
 
     const sessionId = createSessionId();
     const createdAt = Date.now();
