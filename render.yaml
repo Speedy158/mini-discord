@@ -14,10 +14,12 @@ services:
       - key: ALLOWED_ORIGIN
         value: https://mini-discord-frontend.onrender.com
 
-  - type: static_site
+  - type: web
     name: mini-discord-frontend
+    env: node
+    plan: free
     buildCommand: npm install && npm run build
-    publishPath: build
+    startCommand: serve -s build
     rootDir: frontend
     envVars:
       - key: REACT_APP_API_BASE
