@@ -3,7 +3,7 @@ services:
     name: mini-discord-backend
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && npm rebuild sqlite3
     startCommand: node server.js
     rootDir: backend
     envVars:
