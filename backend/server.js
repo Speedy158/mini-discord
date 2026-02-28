@@ -5,18 +5,6 @@ const cors = require("cors");
 const { Server } = require("socket.io");
 const { init, get } = require("./db");
 
-// API-Routen
-const authRoutes = require("./routes/auth");
-const inviteRoutes = require("./routes/invite");
-const userRoutes = require("./routes/users");
-const channelRoutes = require("./routes/channels")(io);
-const messageRoutes = require("./routes/messages")(io);
-
-// Socket-Handler
-const chatSocket = require("./socket/chat");
-const voiceSocket = require("./socket/voice");
-const presenceSocket = require("./socket/presence");
-
 const app = express();
 
 // CORS-Konfiguration
@@ -59,6 +47,13 @@ io.use(async (socket, next) => {
   }
 });
 
+// API-Routen (nach io-Initialisierung einbinden)
+const authRoutes = require("./routes/auth");
+const inviteRoutes = require("./routes/invite");
+const userRoutes = require("./routes/users");
+const channelRoutes = require("./routes/channels")(io);
+const messageRoutes = require("./routes/messages")(io);
+
 // API-Endpunkte
 app.use("/api/auth", authRoutes);
 app.use("/api/invite", inviteRoutes);
@@ -67,6 +62,10 @@ app.use("/api/channels", channelRoutes);
 app.use("/api/messages", messageRoutes);
 
 // Socket.io-Events
+const chatSocket = require("./socket/chat");
+const voiceSocket = require("./socket/voice");
+const presenceSocket = require("./socket/presence");
+
 chatSocket(io);
 voiceSocket(io);
 presenceSocket(io);
