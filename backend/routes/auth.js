@@ -95,14 +95,23 @@ module.exports = function (io) {
   router.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
+    if (!validateUsername(username)) {
+      return res.status(400).json({ error: "Ungültiger Benutzername" });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ error: "Ungültiges Passwort" });
+    }
+
     const user = await get(`SELECT * FROM users WHERE username = $1`, [username]);
     if (!user) return res.status(400).json({ error: "Benutzer existiert nicht" });
     if (user.isBanned) return res.status(403).json({ error: "Du bist gebannt" });
 
-    console.log("Login attempt:", {
+    console.log("Login-Debug:", {
       username,
       password,
-      storedHash: user?.passwordHash
+      typeofPassword: typeof password,
+      storedHash: user?.passwordHash,
+      typeofHash: typeof user?.passwordHash
     });
 
     try {
