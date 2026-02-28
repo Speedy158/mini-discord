@@ -14,7 +14,7 @@ services:
       - key: ALLOWED_ORIGIN
         value: https://mini-discord-frontend.onrender.com
 
-  - type: static
+  - type: static_site
     name: mini-discord-frontend
     buildCommand: npm install && npm run build
     publishPath: build
