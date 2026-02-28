@@ -48,9 +48,9 @@ io.use(async (socket, next) => {
 });
 
 // API-Routen (nach io-Initialisierung einbinden)
-const authRoutes = require("./routes/auth");
-const inviteRoutes = require("./routes/invite");
-const userRoutes = require("./routes/users");
+const authRoutes = require("./routes/auth")(io);
+const inviteRoutes = require("./routes/invite")(io);
+const userRoutes = require("./routes/users")(io);
 const channelRoutes = require("./routes/channels")(io);
 const messageRoutes = require("./routes/messages")(io);
 
