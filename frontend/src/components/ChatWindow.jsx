@@ -12,7 +12,9 @@ function ChatWindow({ currentChannel, username }) {
   const sessionId = localStorage.getItem("sessionId");
 
   useEffect(() => {
-    if (currentChannel) loadMessages(currentChannel);
+    if (currentChannel) {
+      loadMessages(currentChannel);
+    }
   }, [currentChannel]);
 
   useEffect(() => {
@@ -22,9 +24,9 @@ function ChatWindow({ currentChannel, username }) {
       }
     }
 
-    function handleMessageEdited(msg) {
+    function handleMessageEdited({ messageId, newText }) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === msg.id ? { ...m, text: msg.text } : m))
+        prev.map((m) => (m.id === messageId ? { ...m, text: newText } : m))
       );
     }
 
@@ -38,6 +40,7 @@ function ChatWindow({ currentChannel, username }) {
 
     const handleClick = () => setContextMenu(null);
     window.addEventListener("click", handleClick);
+
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("messageEdited", handleMessageEdited);

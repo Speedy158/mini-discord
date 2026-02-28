@@ -29,7 +29,12 @@ module.exports = function (io) {
       if (!message || message.user !== user.username) return;
 
       await run(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
-      io.emit("editMessage", { id, text });
+
+      // Sende Event mit passendem Namen und Payload
+      io.emit("messageEdited", {
+        messageId: id,
+        newText: text
+      });
     });
 
     // Nachricht löschen
@@ -42,7 +47,11 @@ module.exports = function (io) {
       if (!message || message.user !== user.username) return;
 
       await run(`DELETE FROM messages WHERE id = ?`, [id]);
-      io.emit("deleteMessage", { id });
+
+      // Passender Event-Name und Payload
+      io.emit("messageDeleted", {
+        messageId: id
+      });
     });
   });
 };

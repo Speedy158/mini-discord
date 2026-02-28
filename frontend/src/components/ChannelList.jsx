@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import socket from "../socket";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
@@ -13,9 +14,31 @@ function ChannelList({ currentChannel, onSelectChannel }) {
 
   useEffect(() => {
     loadChannels();
+
+    // Echtzeit-Events
+    socket.on("channelCreated", ({ name }) => {
+      setChannels((prev) => [...prev, name]);
+    });
+
+    socket.on("channelRenamed", ({ oldName, newName }) => {
+      setChannels((prev) =>
+        prev.map((ch) => (ch === oldName ? newName : ch))
+      );
+    });
+
+    socket.on("channelDeleted", ({ name }) => {
+      setChannels((prev) => prev.filter((ch) => ch !== name));
+    });
+
     const handleClick = () => setContextMenu(null);
     window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
+
+    return () => {
+      socket.off("channelCreated");
+      socket.off("channelRenamed");
+      socket.off("channelDeleted");
+      window.removeEventListener("click", handleClick);
+    };
   }, []);
 
   async function loadChannels() {
@@ -47,7 +70,7 @@ function ChannelList({ currentChannel, onSelectChannel }) {
       if (data.ok) {
         setNewChannelName("");
         setAddingChannel(false);
-        await loadChannels();
+        // Kein loadChannels nötig – Echtzeit-Event übernimmt das
       } else {
         alert(data.error || "Channel konnte nicht erstellt werden.");
       }
@@ -70,7 +93,7 @@ function ChannelList({ currentChannel, onSelectChannel }) {
       const data = await res.json();
       if (data.ok) {
         setRenamingChannel(null);
-        await loadChannels();
+        // Echtzeit-Event übernimmt Aktualisierung
       } else {
         alert(data.error || "Channel konnte nicht umbenannt werden.");
       }
@@ -91,9 +114,7 @@ function ChannelList({ currentChannel, onSelectChannel }) {
         body: JSON.stringify({ name })
       });
       const data = await res.json();
-      if (data.ok) {
-        await loadChannels();
-      } else {
+      if (!data.ok) {
         alert(data.error || "Channel konnte nicht gelöscht werden.");
       }
     } catch (err) {

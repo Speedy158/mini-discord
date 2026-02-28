@@ -9,8 +9,8 @@ const { init, get } = require("./db");
 const authRoutes = require("./routes/auth");
 const inviteRoutes = require("./routes/invite");
 const userRoutes = require("./routes/users");
-const channelRoutes = require("./routes/channels");
-const messageRoutes = require("./routes/messages");
+const channelRoutes = require("./routes/channels")(io);
+const messageRoutes = require("./routes/messages")(io);
 
 // Socket-Handler
 const chatSocket = require("./socket/chat");

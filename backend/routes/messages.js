@@ -1,86 +1,69 @@
-// backend/routes/messages.js
 const express = require("express");
-const router = express.Router();
-
 const { get, all, run } = require("../db");
 
-/*
-|--------------------------------------------------------------------------
-| Middleware: Admin prüfen
-|--------------------------------------------------------------------------
-*/
-async function requireAdmin(req, res, next) {
-  const sessionId = req.headers["x-session-id"];
-  if (!sessionId) return res.status(401).json({ error: "Keine Session angegeben" });
+module.exports = function (io) {
+  const router = express.Router();
 
-  const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
-  if (!session) return res.status(401).json({ error: "Session ungültig" });
+  async function requireAdmin(req, res, next) {
+    const sessionId = req.headers["x-session-id"];
+    if (!sessionId) return res.status(401).json({ error: "Keine Session angegeben" });
 
-  const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
-  if (!user) return res.status(401).json({ error: "User existiert nicht" });
+    const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
+    if (!session) return res.status(401).json({ error: "Session ungültig" });
 
-  if (user.isAdmin !== 1) {
-    return res.status(403).json({ error: "Keine Admin-Rechte" });
+    const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
+    if (!user) return res.status(401).json({ error: "User existiert nicht" });
+
+    if (user.isAdmin !== 1) {
+      return res.status(403).json({ error: "Keine Admin-Rechte" });
+    }
+
+    req.user = user;
+    next();
   }
 
-  req.user = user;
-  next();
-}
+  router.get("/list/:channel", async (req, res) => {
+    const channel = req.params.channel;
 
-/*
-|--------------------------------------------------------------------------
-| 1) Nachrichten eines Channels abrufen (alle User)
-|--------------------------------------------------------------------------
-*/
-router.get("/list/:channel", async (req, res) => {
-  const channel = req.params.channel;
+    const exists = await get(`SELECT name FROM channels WHERE name = ?`, [channel]);
+    if (!exists) {
+      return res.status(404).json({ error: "Channel existiert nicht" });
+    }
 
-  const exists = await get(`SELECT name FROM channels WHERE name = ?`, [channel]);
-  if (!exists) {
-    return res.status(404).json({ error: "Channel existiert nicht" });
-  }
+    const msgs = await all(
+      `SELECT id, channel, user, text, time
+       FROM messages
+       WHERE channel = ?
+       ORDER BY time ASC`,
+      [channel]
+    );
 
-  const msgs = await all(
-    `SELECT id, channel, user, text, time
-     FROM messages
-     WHERE channel = ?
-     ORDER BY time ASC`,
-    [channel]
-  );
+    return res.json({ ok: true, messages: msgs });
+  });
 
-  return res.json({ ok: true, messages: msgs });
-});
+  router.post("/delete", requireAdmin, async (req, res) => {
+    const { messageId } = req.body;
 
-/*
-|--------------------------------------------------------------------------
-| 2) Nachricht löschen (Admin)
-|--------------------------------------------------------------------------
-*/
-router.post("/delete", requireAdmin, async (req, res) => {
-  const { messageId } = req.body;
+    const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
+    if (!msg) return res.status(404).json({ error: "Nachricht existiert nicht" });
 
-  const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
-  if (!msg) return res.status(404).json({ error: "Nachricht existiert nicht" });
+    await run(`DELETE FROM messages WHERE id = ?`, [messageId]);
 
-  await run(`DELETE FROM messages WHERE id = ?`, [messageId]);
+    io.emit("messageDeleted", { messageId });
+    return res.json({ ok: true });
+  });
 
-  return res.json({ ok: true });
-});
+  router.post("/edit", requireAdmin, async (req, res) => {
+    const { messageId, newText } = req.body;
 
-/*
-|--------------------------------------------------------------------------
-| 3) Nachricht bearbeiten (Admin)
-|--------------------------------------------------------------------------
-*/
-router.post("/edit", requireAdmin, async (req, res) => {
-  const { messageId, newText } = req.body;
+    const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
+    if (!msg) return res.status(404).json({ error: "Nachricht existiert nicht" });
 
-  const msg = await get(`SELECT * FROM messages WHERE id = ?`, [messageId]);
-  if (!msg) return res.status(404).json({ error: "Nachricht existiert nicht" });
+    await run(`UPDATE messages SET text = ? WHERE id = ?`, [newText, messageId]);
 
-  await run(`UPDATE messages SET text = ? WHERE id = ?`, [newText, messageId]);
+    io.emit("messageEdited", { messageId, newText });
+    return res.json({ ok: true });
+  });
 
-  return res.json({ ok: true });
-});
-
-module.exports = router;
+  return router;
+};
