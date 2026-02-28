@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import socket from "../socket";
 import { useVoiceState } from "../context/VoiceContext";
+import { initVoicePeers, closeAllPeers } from "../peerManager";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
@@ -52,29 +53,22 @@ function VoicePanel({ username }) {
     loadChannels();
     loadUser();
 
-    // Echtzeit-Updates für Channels
-    const handleCreated = ({ name }) => {
+    socket.on("channelCreated", ({ name }) => {
       setChannels((prev) => [...prev, name]);
-    };
+    });
 
-    const handleRenamed = ({ oldName, newName }) => {
-      setChannels((prev) =>
-        prev.map((ch) => (ch === oldName ? newName : ch))
-      );
-    };
+    socket.on("channelRenamed", ({ oldName, newName }) => {
+      setChannels((prev) => prev.map((ch) => (ch === oldName ? newName : ch)));
+    });
 
-    const handleDeleted = ({ name }) => {
+    socket.on("channelDeleted", ({ name }) => {
       setChannels((prev) => prev.filter((ch) => ch !== name));
-    };
-
-    socket.on("channelCreated", handleCreated);
-    socket.on("channelRenamed", handleRenamed);
-    socket.on("channelDeleted", handleDeleted);
+    });
 
     return () => {
-      socket.off("channelCreated", handleCreated);
-      socket.off("channelRenamed", handleRenamed);
-      socket.off("channelDeleted", handleDeleted);
+      socket.off("channelCreated");
+      socket.off("channelRenamed");
+      socket.off("channelDeleted");
     };
   }, [sessionId]);
 
@@ -83,22 +77,17 @@ function VoicePanel({ username }) {
       socket.emit("registerUser", { username });
     }
 
-    function handleSpeakingStart({ user }) {
-      setSpeakingUsers((prev) =>
-        prev.includes(user) ? prev : [...prev, user]
-      );
-    }
+    socket.on("speakingStart", ({ user }) => {
+      setSpeakingUsers((prev) => (prev.includes(user) ? prev : [...prev, user]));
+    });
 
-    function handleSpeakingStop({ user }) {
+    socket.on("speakingStop", ({ user }) => {
       setSpeakingUsers((prev) => prev.filter((u) => u !== user));
-    }
-
-    socket.on("speakingStart", handleSpeakingStart);
-    socket.on("speakingStop", handleSpeakingStop);
+    });
 
     return () => {
-      socket.off("speakingStart", handleSpeakingStart);
-      socket.off("speakingStop", handleSpeakingStop);
+      socket.off("speakingStart");
+      socket.off("speakingStop");
     };
   }, [username]);
 
@@ -135,6 +124,8 @@ function VoicePanel({ username }) {
 
         source.connect(analyser);
 
+        initVoicePeers(stream, currentVoiceChannel, username, voiceState);
+
         const detectSpeech = () => {
           analyser.getByteFrequencyData(dataArray);
           const volume = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
@@ -168,6 +159,7 @@ function VoicePanel({ username }) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    closeAllPeers();
   }
 
   function joinChannel(channel) {
@@ -222,20 +214,10 @@ function VoicePanel({ username }) {
     }
 
     if (userData.avatarType === "upload" && userData.avatarImage) {
-      return (
-        <img
-          src={userData.avatarImage}
-          alt="avatar"
-          className="avatar"
-        />
-      );
+      return <img src={userData.avatarImage} alt="avatar" className="avatar" />;
     }
 
-    return (
-      <div className="avatar" style={{ backgroundColor: "#666" }}>
-        ?
-      </div>
-    );
+    return <div className="avatar" style={{ backgroundColor: "#666" }}>?</div>;
   }
 
   return (

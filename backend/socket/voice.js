@@ -63,6 +63,30 @@ async function setupVoice(io) {
       io.to("vc-" + channel).emit("speakingStop", { user: user.username });
     });
 
+    // WebRTC: Signaling – Angebot senden
+    socket.on("voice-offer", ({ to, from, sdp, channel }) => {
+      const target = findSocketByUsername(io, to);
+      if (target) {
+        target.emit("voice-offer", { from, sdp, channel });
+      }
+    });
+
+    // WebRTC: Antwort senden
+    socket.on("voice-answer", ({ to, from, sdp, channel }) => {
+      const target = findSocketByUsername(io, to);
+      if (target) {
+        target.emit("voice-answer", { from, sdp, channel });
+      }
+    });
+
+    // WebRTC: ICE-Kandidaten weiterleiten
+    socket.on("voice-ice-candidate", ({ to, from, candidate, channel }) => {
+      const target = findSocketByUsername(io, to);
+      if (target) {
+        target.emit("voice-ice-candidate", { from, candidate, channel });
+      }
+    });
+
     // Verbindung trennen
     socket.on("disconnect", () => {
       for (const ch in voiceChannels) {
@@ -74,6 +98,15 @@ async function setupVoice(io) {
       io.emit("voiceChannelUpdate", voiceChannels);
     });
   });
+}
+
+function findSocketByUsername(io, username) {
+  for (const [id, socket] of io.of("/").sockets) {
+    if (socket.user?.username === username) {
+      return socket;
+    }
+  }
+  return null;
 }
 
 function getVoiceState() {
