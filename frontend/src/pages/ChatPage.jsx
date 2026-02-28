@@ -1,73 +1,129 @@
-// src/pages/ChatPage.jsx
+// src/components/UserList.jsx
 import React, { useEffect, useState } from "react";
-import ChannelList from "../components/ChannelList";
-import ChatWindow from "../components/ChatWindow";
-import VoicePanel from "../components/VoicePanel";
-import UserList from "../components/UserList";
+import socket from "../socket";
+import { useOnlineUsers } from "../context/OnlineContext";
+import { useVoiceState } from "../context/VoiceContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE;
 
-function ChatPage() {
-  const [session, setSession] = useState(null);
-  const [username, setUsername] = useState(null);
-  const [currentChannel, setCurrentChannel] = useState(null);
-
-  // Session prüfen
-  useEffect(() => {
-    const sessionId = localStorage.getItem("sessionId");
-    if (!sessionId) return;
-
-    fetch(`${API_BASE}/api/auth/session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-session-id": sessionId
-      }
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok) {
-          setSession(sessionId);
-          setUsername(data.user.username);
-        } else {
-          localStorage.removeItem("sessionId");
-        }
-      })
-      .catch((err) => {
-        console.error("Fehler beim Session-Check:", err);
-        localStorage.removeItem("sessionId");
-      });
-  }, []);
-
-  if (!session) {
+function UserAvatar({ user }) {
+  if (user.avatarType === "generated") {
     return (
-      <div style={{ padding: 20 }}>
-        <h2>Keine Session gefunden</h2>
-        <p>Bitte neu einloggen.</p>
-        <a href="/">Zurück zum Login</a>
+      <div
+        className="avatar"
+        style={{
+          backgroundColor: user.avatarColor || "#888",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: "bold",
+          fontSize: "12px",
+          width: "24px",
+          height: "24px",
+          borderRadius: "50%",
+          flexShrink: 0
+        }}
+      >
+        {user.avatarLetter || "?"}
       </div>
     );
   }
 
+  if (user.avatarType === "upload" && user.avatarImage) {
+    return (
+      <img
+        src={user.avatarImage}
+        alt="avatar"
+        className="avatar"
+        style={{ width: "24px", height: "24px", borderRadius: "50%" }}
+      />
+    );
+  }
+
   return (
-    <div className="chat-layout">
-      <div className="sidebar-left">
-        <ChannelList
-          currentChannel={currentChannel}
-          onSelectChannel={setCurrentChannel}
-        />
-        <VoicePanel username={username} />
-      </div>
-
-      <div className="chat-main">
-        <ChatWindow currentChannel={currentChannel} username={username} />
-      </div>
-
-      <div className="sidebar-right">
-        <UserList />
-      </div>
+    <div
+      className="avatar"
+      style={{
+        backgroundColor: "#666",
+        width: "24px",
+        height: "24px",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fff",
+        fontSize: "12px"
+      }}
+    >
+      ?
     </div>
   );
 }
 
-export default ChatPage;
+function UserList() {
+  const [users, setUsers] = useState([]);
+  const onlineUsernames = useOnlineUsers();
+  const voiceState = useVoiceState();
+  const username = localStorage.getItem("username");
+
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/all-public`);
+        const data = await res.json();
+        if (data.ok) {
+          setUsers(data.users);
+        }
+      } catch (err) {
+        console.error("Fehler beim Laden der User:", err);
+      }
+    }
+
+    loadUsers();
+
+    const handleUserListUpdate = () => {
+      loadUsers();
+    };
+
+    socket.on("userListUpdated", handleUserListUpdate);
+    return () => {
+      socket.off("userListUpdated", handleUserListUpdate);
+    };
+  }, []);
+
+  function getVoiceChannel(userId) {
+    for (const [channel, members] of Object.entries(voiceState)) {
+      if (members.some((m) => m.id === userId)) {
+        return channel;
+      }
+    }
+    return null;
+  }
+
+  return (
+    <div className="user-list">
+      <h3>Online</h3>
+      {users
+        .filter((u) => onlineUsernames.includes(u.username))
+        .map((u) => {
+          const channel = getVoiceChannel(u.id);
+          const isSelf = u.username === username;
+          return (
+            <div
+              key={u.id}
+              className={"user-online" + (isSelf ? " user-self" : "")}
+            >
+              <UserAvatar user={u} />
+              <span>{u.username}</span>
+              {channel && (
+                <span className="user-voice-status">in {channel}</span>
+              )}
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+export default UserList;

@@ -28,6 +28,7 @@ function LoginPage() {
     }
 
     localStorage.setItem("sessionId", data.sessionId);
+    localStorage.setItem("username", data.user.username);
     navigate("/chat");
   }
 
@@ -47,6 +48,7 @@ function LoginPage() {
     }
 
     localStorage.setItem("sessionId", data.sessionId);
+    localStorage.setItem("username", data.user.username);
     navigate("/chat");
   }
 
