@@ -33,10 +33,10 @@ io.use(async (socket, next) => {
   if (!sessionId) return next(new Error("Keine Session-ID übergeben"));
 
   try {
-    const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
+    const session = await get(`SELECT * FROM sessions WHERE id = $1`, [sessionId]);
     if (!session) return next(new Error("Ungültige Session"));
 
-    const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
+    const user = await get(`SELECT * FROM users WHERE id = $1`, [session.userId]);
     if (!user || user.isBanned) return next(new Error("Zugriff verweigert"));
 
     socket.user = user;
@@ -47,14 +47,13 @@ io.use(async (socket, next) => {
   }
 });
 
-// API-Routen (nach io-Initialisierung einbinden)
+// API-Routen
 const authRoutes = require("./routes/auth")(io);
 const inviteRoutes = require("./routes/invite")(io);
 const userRoutes = require("./routes/users")(io);
 const channelRoutes = require("./routes/channels")(io);
 const messageRoutes = require("./routes/messages")(io);
 
-// API-Endpunkte
 app.use("/api/auth", authRoutes);
 app.use("/api/invite", inviteRoutes);
 app.use("/api/users", userRoutes);
@@ -70,7 +69,7 @@ chatSocket(io);
 voiceSocket(io);
 presenceSocket(io);
 
-// Optionale Root-Route für Debugging
+// Root-Route
 app.get("/", (req, res) => {
   res.send("Mini-Discord Backend läuft.");
 });
@@ -79,9 +78,10 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 init().then(() => {
-  console.log("SQLite-Tabellen initialisiert.");
+  console.log("PostgreSQL-Tabellen initialisiert.");
   server.listen(PORT, () => {
     console.log(`Server läuft auf Port ${PORT}`);
   });
+}).catch((err) => {
+  console.error("❌ Fehler beim Initialisieren der Datenbank:", err);
 });
-

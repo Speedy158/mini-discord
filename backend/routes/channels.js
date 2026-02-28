@@ -8,13 +8,13 @@ module.exports = function (io) {
     const sessionId = req.headers["x-session-id"];
     if (!sessionId) return res.status(401).json({ error: "Keine Session angegeben" });
 
-    const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
+    const session = await get(`SELECT * FROM sessions WHERE id = $1`, [sessionId]);
     if (!session) return res.status(401).json({ error: "Session ungültig" });
 
-    const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
+    const user = await get(`SELECT * FROM users WHERE id = $1`, [session.userId]);
     if (!user) return res.status(401).json({ error: "User existiert nicht" });
 
-    if (user.isAdmin !== 1) {
+    if (!user.isAdmin) {
       return res.status(403).json({ error: "Keine Admin-Rechte" });
     }
 
@@ -41,12 +41,12 @@ module.exports = function (io) {
     }
 
     try {
-      const exists = await get(`SELECT name FROM channels WHERE name = ?`, [name]);
+      const exists = await get(`SELECT name FROM channels WHERE name = $1`, [name]);
       if (exists) {
         return res.status(400).json({ error: "Channel existiert bereits" });
       }
 
-      await run(`INSERT INTO channels (name) VALUES (?)`, [name]);
+      await run(`INSERT INTO channels (name) VALUES ($1)`, [name]);
       io.emit("channelCreated", { name });
       res.json({ ok: true });
     } catch (err) {
@@ -63,18 +63,18 @@ module.exports = function (io) {
     }
 
     try {
-      const existsOld = await get(`SELECT name FROM channels WHERE name = ?`, [oldName]);
+      const existsOld = await get(`SELECT name FROM channels WHERE name = $1`, [oldName]);
       if (!existsOld) {
         return res.status(404).json({ error: "Alter Channel existiert nicht" });
       }
 
-      const existsNew = await get(`SELECT name FROM channels WHERE name = ?`, [newName]);
+      const existsNew = await get(`SELECT name FROM channels WHERE name = $1`, [newName]);
       if (existsNew) {
         return res.status(400).json({ error: "Neuer Name existiert bereits" });
       }
 
-      await run(`UPDATE channels SET name = ? WHERE name = ?`, [newName, oldName]);
-      await run(`UPDATE messages SET channel = ? WHERE channel = ?`, [newName, oldName]);
+      await run(`UPDATE channels SET name = $1 WHERE name = $2`, [newName, oldName]);
+      await run(`UPDATE messages SET channel = $1 WHERE channel = $2`, [newName, oldName]);
 
       io.emit("channelRenamed", { oldName, newName });
       res.json({ ok: true });
@@ -90,13 +90,13 @@ module.exports = function (io) {
     if (!name) return res.status(400).json({ error: "Kein Channel angegeben" });
 
     try {
-      const exists = await get(`SELECT name FROM channels WHERE name = ?`, [name]);
+      const exists = await get(`SELECT name FROM channels WHERE name = $1`, [name]);
       if (!exists) {
         return res.status(404).json({ error: "Channel existiert nicht" });
       }
 
-      await run(`DELETE FROM channels WHERE name = ?`, [name]);
-      await run(`DELETE FROM messages WHERE channel = ?`, [name]);
+      await run(`DELETE FROM channels WHERE name = $1`, [name]);
+      await run(`DELETE FROM messages WHERE channel = $1`, [name]);
 
       io.emit("channelDeleted", { name });
       res.json({ ok: true });

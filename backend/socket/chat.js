@@ -1,4 +1,3 @@
-// backend/socket/chat.js
 const { run, all } = require("../db");
 
 module.exports = function (io) {
@@ -11,12 +10,16 @@ module.exports = function (io) {
       if (!channel || !text || !user) return;
 
       const time = Date.now();
-      await run(
-        `INSERT INTO messages (channel, user, text, time) VALUES (?, ?, ?, ?)`,
-        [channel, user.username, text, time]
-      );
+      try {
+        await run(
+          `INSERT INTO messages (channel, user, text, time) VALUES ($1, $2, $3, $4)`,
+          [channel, user.username, text, time]
+        );
 
-      io.emit("newMessage", { channel, user: user.username, text, time });
+        io.emit("newMessage", { channel, user: user.username, text, time });
+      } catch (err) {
+        console.error("Fehler beim Senden der Nachricht:", err);
+      }
     });
 
     // Nachricht bearbeiten
@@ -24,17 +27,20 @@ module.exports = function (io) {
       const user = socket.user;
       if (!id || !text || !user) return;
 
-      const messages = await all(`SELECT * FROM messages WHERE id = ?`, [id]);
-      const message = messages[0];
-      if (!message || message.user !== user.username) return;
+      try {
+        const messages = await all(`SELECT * FROM messages WHERE id = $1`, [id]);
+        const message = messages[0];
+        if (!message || message.user !== user.username) return;
 
-      await run(`UPDATE messages SET text = ? WHERE id = ?`, [text, id]);
+        await run(`UPDATE messages SET text = $1 WHERE id = $2`, [text, id]);
 
-      // Sende Event mit passendem Namen und Payload
-      io.emit("messageEdited", {
-        messageId: id,
-        newText: text
-      });
+        io.emit("messageEdited", {
+          messageId: id,
+          newText: text
+        });
+      } catch (err) {
+        console.error("Fehler beim Bearbeiten der Nachricht:", err);
+      }
     });
 
     // Nachricht löschen
@@ -42,16 +48,19 @@ module.exports = function (io) {
       const user = socket.user;
       if (!id || !user) return;
 
-      const messages = await all(`SELECT * FROM messages WHERE id = ?`, [id]);
-      const message = messages[0];
-      if (!message || message.user !== user.username) return;
+      try {
+        const messages = await all(`SELECT * FROM messages WHERE id = $1`, [id]);
+        const message = messages[0];
+        if (!message || message.user !== user.username) return;
 
-      await run(`DELETE FROM messages WHERE id = ?`, [id]);
+        await run(`DELETE FROM messages WHERE id = $1`, [id]);
 
-      // Passender Event-Name und Payload
-      io.emit("messageDeleted", {
-        messageId: id
-      });
+        io.emit("messageDeleted", {
+          messageId: id
+        });
+      } catch (err) {
+        console.error("Fehler beim Löschen der Nachricht:", err);
+      }
     });
   });
 };

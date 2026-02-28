@@ -1,4 +1,3 @@
-// backend/routes/invite.js
 const express = require("express");
 const { get, all, run } = require("../db");
 const { generateHexKey } = require("../utils/keygen");
@@ -11,13 +10,13 @@ module.exports = function (io) {
     const sessionId = req.headers["x-session-id"] || req.body.sessionId;
     if (!sessionId) return res.status(401).json({ error: "Keine Session angegeben" });
 
-    const session = await get(`SELECT * FROM sessions WHERE id = ?`, [sessionId]);
+    const session = await get(`SELECT * FROM sessions WHERE id = $1`, [sessionId]);
     if (!session) return res.status(401).json({ error: "Session ungültig" });
 
-    const user = await get(`SELECT * FROM users WHERE id = ?`, [session.userId]);
+    const user = await get(`SELECT * FROM users WHERE id = $1`, [session.userId]);
     if (!user) return res.status(401).json({ error: "User existiert nicht" });
 
-    if (user.isAdmin !== 1) {
+    if (!user.isAdmin) {
       return res.status(403).json({ error: "Keine Admin-Rechte" });
     }
 
@@ -31,15 +30,15 @@ module.exports = function (io) {
 
     const key = generateHexKey();
     const createdAt = Date.now();
-    const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 30;
+    const expiresAt = createdAt + 1000 * 60 * 60 * 24 * 30;
 
     await run(
       `INSERT INTO invite_keys (key, isUsed, isAdminKey, createdAt, expiresAt)
-       VALUES (?, 0, ?, ?, ?)`,
-      [key, isAdminKey ? 1 : 0, createdAt, expiresAt]
+       VALUES ($1, $2, $3, $4, $5)`,
+      [key, false, isAdminKey, createdAt, expiresAt]
     );
 
-    io.emit("userListUpdated"); // optional, falls Invite-UI davon abhängt
+    io.emit("userListUpdated");
 
     return res.json({
       ok: true,
@@ -69,9 +68,9 @@ module.exports = function (io) {
       return res.status(400).json({ error: "Ungültiger Key" });
     }
 
-    await run(`DELETE FROM invite_keys WHERE key = ?`, [key]);
+    await run(`DELETE FROM invite_keys WHERE key = $1`, [key]);
 
-    io.emit("userListUpdated"); // optional, falls Invite-UI davon abhängt
+    io.emit("userListUpdated");
 
     return res.json({ ok: true });
   });
