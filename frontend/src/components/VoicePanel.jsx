@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import socket from "../socket";
 import { useVoiceState } from "../context/VoiceContext";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 function VoicePanel({ username }) {
   const [channels, setChannels] = useState([]);

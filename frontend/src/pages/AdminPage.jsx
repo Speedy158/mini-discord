@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import "../styles/AdminPanel.css";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 function AdminPage() {
   const [sessionValid, setSessionValid] = useState(false);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import socket from "../socket";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 function UserAvatar({ user }) {
   if (user.avatarType === "generated") {

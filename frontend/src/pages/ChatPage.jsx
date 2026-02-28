@@ -5,7 +5,7 @@ import ChatWindow from "../components/ChatWindow";
 import VoicePanel from "../components/VoicePanel";
 import UserList from "../components/UserList";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 function ChatPage() {
   const [session, setSession] = useState(null);
